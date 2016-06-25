@@ -32,78 +32,199 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 package treemap
 
 import (
+	"github.com/emirpasic/gods/containers"
 	"github.com/emirpasic/gods/maps"
 	rbt "github.com/emirpasic/gods/trees/redblacktree"
 	"github.com/emirpasic/gods/utils"
 )
 
 func assertInterfaceImplementation() {
-	var _ maps.Interface = (*Map)(nil)
+	var _ maps.Map = (*Map)(nil)
+	var _ containers.EnumerableWithKey = (*Map)(nil)
+	var _ containers.IteratorWithKey = (*Iterator)(nil)
 }
 
+// Map holds the elements in a red-black tree
 type Map struct {
 	tree *rbt.Tree
 }
 
-// Instantiates a tree map with the custom comparator.
+// NewWith instantiates a tree map with the custom comparator.
 func NewWith(comparator utils.Comparator) *Map {
 	return &Map{tree: rbt.NewWith(comparator)}
 }
 
-// Instantiates a tree map with the IntComparator, i.e. keys are of type int.
+// NewWithIntComparator instantiates a tree map with the IntComparator, i.e. keys are of type int.
 func NewWithIntComparator() *Map {
 	return &Map{tree: rbt.NewWithIntComparator()}
 }
 
-// Instantiates a tree map with the StringComparator, i.e. keys are of type string.
+// NewWithStringComparator instantiates a tree map with the StringComparator, i.e. keys are of type string.
 func NewWithStringComparator() *Map {
 	return &Map{tree: rbt.NewWithStringComparator()}
 }
 
-// Inserts key-value pair into the map.
+// Put inserts key-value pair into the map.
 // Key should adhere to the comparator's type assertion, otherwise method panics.
 func (m *Map) Put(key interface{}, value interface{}) {
 	m.tree.Put(key, value)
 }
 
-// Searches the element in the map by key and returns its value or nil if key is not found in tree.
+// Get searches the element in the map by key and returns its value or nil if key is not found in tree.
 // Second return parameter is true if key was found, otherwise false.
 // Key should adhere to the comparator's type assertion, otherwise method panics.
 func (m *Map) Get(key interface{}) (value interface{}, found bool) {
 	return m.tree.Get(key)
 }
 
-// Remove the element from the map by key.
+// Remove removes the element from the map by key.
 // Key should adhere to the comparator's type assertion, otherwise method panics.
 func (m *Map) Remove(key interface{}) {
 	m.tree.Remove(key)
 }
 
-// Returns true if map does not contain any elements
+// Empty returns true if map does not contain any elements
 func (m *Map) Empty() bool {
 	return m.tree.Empty()
 }
 
-// Returns number of elements in the map.
+// Size returns number of elements in the map.
 func (m *Map) Size() int {
 	return m.tree.Size()
 }
 
-// Returns all keys in-order
+// Keys returns all keys in-order
 func (m *Map) Keys() []interface{} {
 	return m.tree.Keys()
 }
 
-// Returns all values in-order based on the key.
+// Values returns all values in-order based on the key.
 func (m *Map) Values() []interface{} {
 	return m.tree.Values()
 }
 
-// Removes all elements from the map.
+// Clear removes all elements from the map.
 func (m *Map) Clear() {
 	m.tree.Clear()
 }
 
+// Min returns the minimum key and its value from the tree map.
+// Returns nil, nil if map is empty.
+func (m *Map) Min() (key interface{}, value interface{}) {
+	if node := m.tree.Left(); node != nil {
+		return node.Key, node.Value
+	}
+	return nil, nil
+}
+
+// Max returns the maximum key and its value from the tree map.
+// Returns nil, nil if map is empty.
+func (m *Map) Max() (key interface{}, value interface{}) {
+	if node := m.tree.Right(); node != nil {
+		return node.Key, node.Value
+	}
+	return nil, nil
+}
+
+// Iterator holding the iterator's state
+type Iterator struct {
+	iterator rbt.Iterator
+}
+
+// Iterator returns a stateful iterator whose elements are key/value pairs.
+func (m *Map) Iterator() Iterator {
+	return Iterator{iterator: m.tree.Iterator()}
+}
+
+// Next moves the iterator to the next element and returns true if there was a next element in the container.
+// If Next() returns true, then next element's key and value can be retrieved by Key() and Value().
+// Modifies the state of the iterator.
+func (iterator *Iterator) Next() bool {
+	return iterator.iterator.Next()
+}
+
+// Value returns the current element's value.
+// Does not modify the state of the iterator.
+func (iterator *Iterator) Value() interface{} {
+	return iterator.iterator.Value()
+}
+
+// Key returns the current element's key.
+// Does not modify the state of the iterator.
+func (iterator *Iterator) Key() interface{} {
+	return iterator.iterator.Key()
+}
+
+// Each calls the given function once for each element, passing that element's key and value.
+func (m *Map) Each(f func(key interface{}, value interface{})) {
+	iterator := m.Iterator()
+	for iterator.Next() {
+		f(iterator.Key(), iterator.Value())
+	}
+}
+
+// Map invokes the given function once for each element and returns a container
+// containing the values returned by the given function as key/value pairs.
+func (m *Map) Map(f func(key1 interface{}, value1 interface{}) (interface{}, interface{})) *Map {
+	newMap := &Map{tree: rbt.NewWith(m.tree.Comparator)}
+	iterator := m.Iterator()
+	for iterator.Next() {
+		key2, value2 := f(iterator.Key(), iterator.Value())
+		newMap.Put(key2, value2)
+	}
+	return newMap
+}
+
+// Select returns a new container containing all elements for which the given function returns a true value.
+func (m *Map) Select(f func(key interface{}, value interface{}) bool) *Map {
+	newMap := &Map{tree: rbt.NewWith(m.tree.Comparator)}
+	iterator := m.Iterator()
+	for iterator.Next() {
+		if f(iterator.Key(), iterator.Value()) {
+			newMap.Put(iterator.Key(), iterator.Value())
+		}
+	}
+	return newMap
+}
+
+// Any passes each element of the container to the given function and
+// returns true if the function ever returns true for any element.
+func (m *Map) Any(f func(key interface{}, value interface{}) bool) bool {
+	iterator := m.Iterator()
+	for iterator.Next() {
+		if f(iterator.Key(), iterator.Value()) {
+			return true
+		}
+	}
+	return false
+}
+
+// All passes each element of the container to the given function and
+// returns true if the function returns true for all elements.
+func (m *Map) All(f func(key interface{}, value interface{}) bool) bool {
+	iterator := m.Iterator()
+	for iterator.Next() {
+		if !f(iterator.Key(), iterator.Value()) {
+			return false
+		}
+	}
+	return true
+}
+
+// Find passes each element of the container to the given function and returns
+// the first (key,value) for which the function is true or nil,nil otherwise if no element
+// matches the criteria.
+func (m *Map) Find(f func(key interface{}, value interface{}) bool) (interface{}, interface{}) {
+	iterator := m.Iterator()
+	for iterator.Next() {
+		if f(iterator.Key(), iterator.Value()) {
+			return iterator.Key(), iterator.Value()
+		}
+	}
+	return nil, nil
+}
+
+// String returns a string representation of container
 func (m *Map) String() string {
 	str := "TreeMap\n"
 	str += m.tree.String()

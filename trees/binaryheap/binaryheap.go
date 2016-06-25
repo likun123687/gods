@@ -33,6 +33,7 @@ package binaryheap
 
 import (
 	"fmt"
+	"github.com/emirpasic/gods/containers"
 	"github.com/emirpasic/gods/lists/arraylist"
 	"github.com/emirpasic/gods/trees"
 	"github.com/emirpasic/gods/utils"
@@ -40,36 +41,38 @@ import (
 )
 
 func assertInterfaceImplementation() {
-	var _ trees.Interface = (*Heap)(nil)
+	var _ trees.Tree = (*Heap)(nil)
+	var _ containers.IteratorWithIndex = (*Iterator)(nil)
 }
 
+// Heap holds elements in an array-list
 type Heap struct {
 	list       *arraylist.List
-	comparator utils.Comparator
+	Comparator utils.Comparator
 }
 
-// Instantiates a new empty heap tree with the custom comparator.
+// NewWith instantiates a new empty heap tree with the custom comparator.
 func NewWith(comparator utils.Comparator) *Heap {
-	return &Heap{list: arraylist.New(), comparator: comparator}
+	return &Heap{list: arraylist.New(), Comparator: comparator}
 }
 
-// Instantiates a new empty heap with the IntComparator, i.e. elements are of type int.
+// NewWithIntComparator instantiates a new empty heap with the IntComparator, i.e. elements are of type int.
 func NewWithIntComparator() *Heap {
-	return &Heap{list: arraylist.New(), comparator: utils.IntComparator}
+	return &Heap{list: arraylist.New(), Comparator: utils.IntComparator}
 }
 
-// Instantiates a new empty heap with the StringComparator, i.e. elements are of type string.
+// NewWithStringComparator instantiates a new empty heap with the StringComparator, i.e. elements are of type string.
 func NewWithStringComparator() *Heap {
-	return &Heap{list: arraylist.New(), comparator: utils.StringComparator}
+	return &Heap{list: arraylist.New(), Comparator: utils.StringComparator}
 }
 
-// Pushes a value onto the heap and bubbles it up accordingly.
+// Push adds a value onto the heap and bubbles it up accordingly.
 func (heap *Heap) Push(value interface{}) {
 	heap.list.Add(value)
 	heap.bubbleUp()
 }
 
-// Pops (removes) top element on heap and returns it, or nil if heap is empty.
+// Pop removes top element on heap and returns it, or nil if heap is empty.
 // Second return parameter is true, unless the heap was empty and there was nothing to pop.
 func (heap *Heap) Pop() (value interface{}, ok bool) {
 	value, ok = heap.list.Get(0)
@@ -83,32 +86,65 @@ func (heap *Heap) Pop() (value interface{}, ok bool) {
 	return
 }
 
-// Returns top element on the heap without removing it, or nil if heap is empty.
+// Peek returns top element on the heap without removing it, or nil if heap is empty.
 // Second return parameter is true, unless the heap was empty and there was nothing to peek.
 func (heap *Heap) Peek() (value interface{}, ok bool) {
 	return heap.list.Get(0)
 }
 
-// Returns true if heap does not contain any elements.
+// Empty returns true if heap does not contain any elements.
 func (heap *Heap) Empty() bool {
 	return heap.list.Empty()
 }
 
-// Returns number of elements within the heap.
+// Size returns number of elements within the heap.
 func (heap *Heap) Size() int {
 	return heap.list.Size()
 }
 
-// Removes all elements from the heap.
+// Clear removes all elements from the heap.
 func (heap *Heap) Clear() {
 	heap.list.Clear()
 }
 
-// Returns all elements in the heap.
+// Values returns all elements in the heap.
 func (heap *Heap) Values() []interface{} {
 	return heap.list.Values()
 }
 
+// Iterator returns a stateful iterator whose values can be fetched by an index.
+type Iterator struct {
+	heap  *Heap
+	index int
+}
+
+// Iterator returns a stateful iterator whose values can be fetched by an index.
+func (heap *Heap) Iterator() Iterator {
+	return Iterator{heap: heap, index: -1}
+}
+
+// Next moves the iterator to the next element and returns true if there was a next element in the container.
+// If Next() returns true, then next element's index and value can be retrieved by Index() and Value().
+// Modifies the state of the iterator.
+func (iterator *Iterator) Next() bool {
+	iterator.index++
+	return iterator.heap.withinRange(iterator.index)
+}
+
+// Value returns the current element's value.
+// Does not modify the state of the iterator.
+func (iterator *Iterator) Value() interface{} {
+	value, _ := iterator.heap.list.Get(iterator.index)
+	return value
+}
+
+// Index returns the current element's index.
+// Does not modify the state of the iterator.
+func (iterator *Iterator) Index() int {
+	return iterator.index
+}
+
+// String returns a string representation of container
 func (heap *Heap) String() string {
 	str := "BinaryHeap\n"
 	values := []string{}
@@ -129,12 +165,12 @@ func (heap *Heap) bubbleDown() {
 		smallerIndex := leftIndex
 		leftValue, _ := heap.list.Get(leftIndex)
 		rightValue, _ := heap.list.Get(rightIndex)
-		if rightIndex < size && heap.comparator(leftValue, rightValue) > 0 {
+		if rightIndex < size && heap.Comparator(leftValue, rightValue) > 0 {
 			smallerIndex = rightIndex
 		}
 		indexValue, _ := heap.list.Get(index)
 		smallerValue, _ := heap.list.Get(smallerIndex)
-		if heap.comparator(indexValue, smallerValue) > 0 {
+		if heap.Comparator(indexValue, smallerValue) > 0 {
 			heap.list.Swap(index, smallerIndex)
 		} else {
 			break
@@ -151,10 +187,15 @@ func (heap *Heap) bubbleUp() {
 	for parentIndex := (index - 1) >> 1; index > 0; parentIndex = (index - 1) >> 1 {
 		indexValue, _ := heap.list.Get(index)
 		parentValue, _ := heap.list.Get(parentIndex)
-		if heap.comparator(parentValue, indexValue) <= 0 {
+		if heap.Comparator(parentValue, indexValue) <= 0 {
 			break
 		}
 		heap.list.Swap(index, parentIndex)
 		index = parentIndex
 	}
+}
+
+// Check that the index is within bounds of the list
+func (heap *Heap) withinRange(index int) bool {
+	return index >= 0 && index < heap.list.Size()
 }

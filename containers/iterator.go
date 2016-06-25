@@ -24,54 +24,34 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-// All data structures must implement the container structure
+// Stateful iterator pattern for ordered containers.
 
 package containers
 
-import (
-	"github.com/emirpasic/gods/utils"
-	"testing"
-)
-
-// For testing purposes
-type ContainerTest struct {
-	values []interface{}
+// IteratorWithIndex is stateful iterator for ordered containers whose values can be fetched by an index.
+type IteratorWithIndex interface {
+	// Next moves the iterator to the next element and returns true if there was a next element in the container.
+	// If Next() returns true, then next element's index and value can be retrieved by Index() and Value().
+	// Modifies the state of the iterator.
+	Next() bool
+	// Value returns the current element's value.
+	// Does not modify the state of the iterator.
+	Value() interface{}
+	// Index returns the current element's index.
+	// Does not modify the state of the iterator.
+	Index() int
 }
 
-func (container ContainerTest) Empty() bool {
-	return len(container.values) == 0
-}
-
-func (container ContainerTest) Size() int {
-	return len(container.values)
-}
-
-func (container ContainerTest) Clear() {
-	container.values = []interface{}{}
-}
-
-func (container ContainerTest) Values() []interface{} {
-	return container.values
-}
-
-func TestGetSortedValuesInts(t *testing.T) {
-	container := ContainerTest{}
-	container.values = []interface{}{5, 1, 3, 2, 4}
-	values := GetSortedValues(container, utils.IntComparator)
-	for i := 1; i < container.Size(); i++ {
-		if values[i-1].(int) > values[i].(int) {
-			t.Errorf("Not sorted!")
-		}
-	}
-}
-
-func TestGetSortedValuesStrings(t *testing.T) {
-	container := ContainerTest{}
-	container.values = []interface{}{"g", "a", "d", "e", "f", "c", "b"}
-	values := GetSortedValues(container, utils.StringComparator)
-	for i := 1; i < container.Size(); i++ {
-		if values[i-1].(string) > values[i].(string) {
-			t.Errorf("Not sorted!")
-		}
-	}
+// IteratorWithKey is a stateful iterator for ordered containers whose elements are key value pairs.
+type IteratorWithKey interface {
+	// Next moves the iterator to the next element and returns true if there was a next element in the container.
+	// If Next() returns true, then next element's key and value can be retrieved by Key() and Value().
+	// Modifies the state of the iterator.
+	Next() bool
+	// Value returns the current element's value.
+	// Does not modify the state of the iterator.
+	Value() interface{}
+	// Key returns the current element's key.
+	// Does not modify the state of the iterator.
+	Key() interface{}
 }

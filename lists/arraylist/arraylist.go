@@ -32,40 +32,44 @@ package arraylist
 
 import (
 	"fmt"
+	"github.com/emirpasic/gods/containers"
 	"github.com/emirpasic/gods/lists"
 	"github.com/emirpasic/gods/utils"
 	"strings"
 )
 
 func assertInterfaceImplementation() {
-	var _ lists.Interface = (*List)(nil)
+	var _ lists.List = (*List)(nil)
+	var _ containers.EnumerableWithIndex = (*List)(nil)
+	var _ containers.IteratorWithIndex = (*Iterator)(nil)
 }
 
+// List holds the elements in a slice
 type List struct {
 	elements []interface{}
 	size     int
 }
 
 const (
-	GROWTH_FACTOR = float32(2.0)  // growth by 100%
-	SHRINK_FACTOR = float32(0.25) // shrink when size is 25% of capacity (0 means never shrink)
+	growthFactor = float32(2.0)  // growth by 100%
+	shrinkFactor = float32(0.25) // shrink when size is 25% of capacity (0 means never shrink)
 )
 
-// Instantiates a new empty list
+// New instantiates a new empty list
 func New() *List {
 	return &List{}
 }
 
-// Appends a value at the end of the list
-func (list *List) Add(elements ...interface{}) {
-	list.growBy(len(elements))
-	for _, element := range elements {
-		list.elements[list.size] = element
-		list.size += 1
+// Add appends a value at the end of the list
+func (list *List) Add(values ...interface{}) {
+	list.growBy(len(values))
+	for _, value := range values {
+		list.elements[list.size] = value
+		list.size++
 	}
 }
 
-// Returns the element at index.
+// Get returns the element at index.
 // Second return parameter is true if index is within bounds of the array and array is not empty, otherwise false.
 func (list *List) Get(index int) (interface{}, bool) {
 
@@ -76,7 +80,7 @@ func (list *List) Get(index int) (interface{}, bool) {
 	return list.elements[index], true
 }
 
-// Removes one or more elements from the list with the supplied indices.
+// Remove removes one or more elements from the list with the supplied indices.
 func (list *List) Remove(index int) {
 
 	if !list.withinRange(index) {
@@ -85,21 +89,21 @@ func (list *List) Remove(index int) {
 
 	list.elements[index] = nil                                    // cleanup reference
 	copy(list.elements[index:], list.elements[index+1:list.size]) // shift to the left by one (slow operation, need ways to optimize this)
-	list.size -= 1
+	list.size--
 
 	list.shrink()
 }
 
-// Check if elements (one or more) are present in the set.
+// Contains checks if elements (one or more) are present in the set.
 // All elements have to be present in the set for the method to return true.
 // Performance time complexity of n^2.
 // Returns true if no arguments are passed at all, i.e. set is always super-set of empty set.
-func (list *List) Contains(elements ...interface{}) bool {
+func (list *List) Contains(values ...interface{}) bool {
 
-	for _, searchElement := range elements {
+	for _, searchValue := range values {
 		found := false
 		for _, element := range list.elements {
-			if element == searchElement {
+			if element == searchValue {
 				found = true
 				break
 			}
@@ -111,30 +115,30 @@ func (list *List) Contains(elements ...interface{}) bool {
 	return true
 }
 
-// Returns all elements in the list.
+// Values returns all elements in the list.
 func (list *List) Values() []interface{} {
 	newElements := make([]interface{}, list.size, list.size)
 	copy(newElements, list.elements[:list.size])
 	return newElements
 }
 
-// Returns true if list does not contain any elements.
+// Empty returns true if list does not contain any elements.
 func (list *List) Empty() bool {
 	return list.size == 0
 }
 
-// Returns number of elements within the list.
+// Size returns number of elements within the list.
 func (list *List) Size() int {
 	return list.size
 }
 
-// Removes all elements from the list.
+// Clear removes all elements from the list.
 func (list *List) Clear() {
 	list.size = 0
 	list.elements = []interface{}{}
 }
 
-// Sorts values (in-place) using timsort.
+// Sort sorts values (in-place) using.
 func (list *List) Sort(comparator utils.Comparator) {
 	if len(list.elements) < 2 {
 		return
@@ -142,13 +146,139 @@ func (list *List) Sort(comparator utils.Comparator) {
 	utils.Sort(list.elements[:list.size], comparator)
 }
 
-// Swaps values of two elements at the given indices.
+// Swap swaps the two values at the specified positions.
 func (list *List) Swap(i, j int) {
 	if list.withinRange(i) && list.withinRange(j) {
 		list.elements[i], list.elements[j] = list.elements[j], list.elements[i]
 	}
 }
 
+// Insert inserts values at specified index position shifting the value at that position (if any) and any subsequent elements to the right.
+// Does not do anything if position is negative or bigger than list's size
+// Note: position equal to list's size is valid, i.e. append.
+func (list *List) Insert(index int, values ...interface{}) {
+
+	if !list.withinRange(index) {
+		// Append
+		if index == list.size {
+			list.Add(values...)
+		}
+		return
+	}
+
+	l := len(values)
+	list.growBy(l)
+	list.size += l
+	// Shift old to right
+	for i := list.size - 1; i >= index+l; i-- {
+		list.elements[i] = list.elements[i-l]
+	}
+	// Insert new
+	for i, value := range values {
+		list.elements[index+i] = value
+	}
+}
+
+// Iterator holding the iterator's state
+type Iterator struct {
+	list  *List
+	index int
+}
+
+// Iterator returns a stateful iterator whose values can be fetched by an index.
+func (list *List) Iterator() Iterator {
+	return Iterator{list: list, index: -1}
+}
+
+// Next moves the iterator to the next element and returns true if there was a next element in the container.
+// If Next() returns true, then next element's index and value can be retrieved by Index() and Value().
+// Modifies the state of the iterator.
+func (iterator *Iterator) Next() bool {
+	iterator.index++
+	return iterator.list.withinRange(iterator.index)
+}
+
+// Value returns the current element's value.
+// Does not modify the state of the iterator.
+func (iterator *Iterator) Value() interface{} {
+	return iterator.list.elements[iterator.index]
+}
+
+// Index returns the current element's index.
+// Does not modify the state of the iterator.
+func (iterator *Iterator) Index() int {
+	return iterator.index
+}
+
+// Each calls the given function once for each element, passing that element's index and value.
+func (list *List) Each(f func(index int, value interface{})) {
+	iterator := list.Iterator()
+	for iterator.Next() {
+		f(iterator.Index(), iterator.Value())
+	}
+}
+
+// Map invokes the given function once for each element and returns a
+// container containing the values returned by the given function.
+func (list *List) Map(f func(index int, value interface{}) interface{}) *List {
+	newList := &List{}
+	iterator := list.Iterator()
+	for iterator.Next() {
+		newList.Add(f(iterator.Index(), iterator.Value()))
+	}
+	return newList
+}
+
+// Select returns a new container containing all elements for which the given function returns a true value.
+func (list *List) Select(f func(index int, value interface{}) bool) *List {
+	newList := &List{}
+	iterator := list.Iterator()
+	for iterator.Next() {
+		if f(iterator.Index(), iterator.Value()) {
+			newList.Add(iterator.Value())
+		}
+	}
+	return newList
+}
+
+// Any passes each element of the collection to the given function and
+// returns true if the function ever returns true for any element.
+func (list *List) Any(f func(index int, value interface{}) bool) bool {
+	iterator := list.Iterator()
+	for iterator.Next() {
+		if f(iterator.Index(), iterator.Value()) {
+			return true
+		}
+	}
+	return false
+}
+
+// All passes each element of the collection to the given function and
+// returns true if the function returns true for all elements.
+func (list *List) All(f func(index int, value interface{}) bool) bool {
+	iterator := list.Iterator()
+	for iterator.Next() {
+		if !f(iterator.Index(), iterator.Value()) {
+			return false
+		}
+	}
+	return true
+}
+
+// Find passes each element of the container to the given function and returns
+// the first (index,value) for which the function is true or -1,nil otherwise
+// if no element matches the criteria.
+func (list *List) Find(f func(index int, value interface{}) bool) (int, interface{}) {
+	iterator := list.Iterator()
+	for iterator.Next() {
+		if f(iterator.Index(), iterator.Value()) {
+			return iterator.Index(), iterator.Value()
+		}
+	}
+	return -1, nil
+}
+
+// String returns a string representation of container
 func (list *List) String() string {
 	str := "ArrayList\n"
 	values := []string{}
@@ -159,9 +289,9 @@ func (list *List) String() string {
 	return str
 }
 
-// Check that the index is withing bounds of the list
+// Check that the index is within bounds of the list
 func (list *List) withinRange(index int) bool {
-	return index >= 0 && index < list.size && list.size != 0
+	return index >= 0 && index < list.size
 }
 
 func (list *List) resize(cap int) {
@@ -172,23 +302,22 @@ func (list *List) resize(cap int) {
 
 // Expand the array if necessary, i.e. capacity will be reached if we add n elements
 func (list *List) growBy(n int) {
-	// When capacity is reached, grow by a factor of GROWTH_FACTOR and add number of elements
+	// When capacity is reached, grow by a factor of growthFactor and add number of elements
 	currentCapacity := cap(list.elements)
 	if list.size+n >= currentCapacity {
-		newCapacity := int(GROWTH_FACTOR * float32(currentCapacity+n))
+		newCapacity := int(growthFactor * float32(currentCapacity+n))
 		list.resize(newCapacity)
 	}
 }
 
-// Shrink the array if necessary, i.e. when size is SHRINK_FACTOR percent of current capacity
+// Shrink the array if necessary, i.e. when size is shrinkFactor percent of current capacity
 func (list *List) shrink() {
-	if SHRINK_FACTOR == 0.0 {
+	if shrinkFactor == 0.0 {
 		return
 	}
-	// Shrink when size is at SHRINK_FACTOR * capacity
+	// Shrink when size is at shrinkFactor * capacity
 	currentCapacity := cap(list.elements)
-	if list.size <= int(float32(currentCapacity)*SHRINK_FACTOR) {
+	if list.size <= int(float32(currentCapacity)*shrinkFactor) {
 		list.resize(list.size)
 	}
-
 }

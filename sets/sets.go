@@ -20,12 +20,13 @@ package sets
 
 import "github.com/emirpasic/gods/containers"
 
-type Interface interface {
+// Set interface that all sets implement
+type Set interface {
 	Add(elements ...interface{})
 	Remove(elements ...interface{})
 	Contains(elements ...interface{}) bool
 
-	containers.Interface
+	containers.Container
 	// Empty() bool
 	// Size() int
 	// Clear()

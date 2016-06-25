@@ -31,11 +31,8 @@ import (
 	"testing"
 )
 
-func TestTreeMap(t *testing.T) {
-
+func TestMapPut(t *testing.T) {
 	m := NewWithIntComparator()
-
-	// insertions
 	m.Put(5, "e")
 	m.Put(6, "f")
 	m.Put(7, "g")
@@ -45,19 +42,14 @@ func TestTreeMap(t *testing.T) {
 	m.Put(2, "b")
 	m.Put(1, "a") //overwrite
 
-	// Test Size()
 	if actualValue := m.Size(); actualValue != 7 {
 		t.Errorf("Got %v expected %v", actualValue, 7)
 	}
-
-	// test Keys()
-	if actualValue, expactedValue := fmt.Sprintf("%d%d%d%d%d%d%d", m.Keys()...), "1234567"; actualValue != expactedValue {
-		t.Errorf("Got %v expected %v", actualValue, expactedValue)
+	if actualValue, expectedValue := m.Keys(), []interface{}{1, 2, 3, 4, 5, 6, 7}; !sameElements(actualValue, expectedValue) {
+		t.Errorf("Got %v expected %v", actualValue, expectedValue)
 	}
-
-	// test Values()
-	if actualValue, expactedValue := fmt.Sprintf("%s%s%s%s%s%s%s", m.Values()...), "abcdefg"; actualValue != expactedValue {
-		t.Errorf("Got %v expected %v", actualValue, expactedValue)
+	if actualValue, expectedValue := m.Values(), []interface{}{"a", "b", "c", "d", "e", "f", "g"}; !sameElements(actualValue, expectedValue) {
+		t.Errorf("Got %v expected %v", actualValue, expectedValue)
 	}
 
 	// key,expectedValue,expectedFound
@@ -79,27 +71,34 @@ func TestTreeMap(t *testing.T) {
 			t.Errorf("Got %v expected %v", actualValue, test[1])
 		}
 	}
+}
 
-	// removals
+func TestMapRemove(t *testing.T) {
+	m := NewWithIntComparator()
+	m.Put(5, "e")
+	m.Put(6, "f")
+	m.Put(7, "g")
+	m.Put(3, "c")
+	m.Put(4, "d")
+	m.Put(1, "x")
+	m.Put(2, "b")
+	m.Put(1, "a") //overwrite
+
 	m.Remove(5)
 	m.Remove(6)
 	m.Remove(7)
 	m.Remove(8)
 	m.Remove(5)
 
-	// Test Keys()
-	if actualValue, expactedValue := fmt.Sprintf("%d%d%d%d", m.Keys()...), "1234"; actualValue != expactedValue {
-		t.Errorf("Got %v expected %v", actualValue, expactedValue)
+	if actualValue, expectedValue := m.Keys(), []interface{}{1, 2, 3, 4}; !sameElements(actualValue, expectedValue) {
+		t.Errorf("Got %v expected %v", actualValue, expectedValue)
 	}
 
-	// test Values()
-	if actualValue, expactedValue := fmt.Sprintf("%s%s%s%s", m.Values()...), "abcd"; actualValue != expactedValue {
-		t.Errorf("Got %v expected %v", actualValue, expactedValue)
+	if actualValue, expectedValue := m.Values(), []interface{}{"a", "b", "c", "d"}; !sameElements(actualValue, expectedValue) {
+		t.Errorf("Got %v expected %v", actualValue, expectedValue)
 	}
-
-	// Test Size()
 	if actualValue := m.Size(); actualValue != 4 {
-		t.Errorf("Got %v expected %v", actualValue, 7)
+		t.Errorf("Got %v expected %v", actualValue, 4)
 	}
 
 	tests2 := [][]interface{}{
@@ -114,14 +113,12 @@ func TestTreeMap(t *testing.T) {
 	}
 
 	for _, test := range tests2 {
-		// retrievals
 		actualValue, actualFound := m.Get(test[0])
 		if actualValue != test[1] || actualFound != test[2] {
 			t.Errorf("Got %v expected %v", actualValue, test[1])
 		}
 	}
 
-	// removals
 	m.Remove(1)
 	m.Remove(4)
 	m.Remove(2)
@@ -129,38 +126,227 @@ func TestTreeMap(t *testing.T) {
 	m.Remove(2)
 	m.Remove(2)
 
-	// Test Keys()
-	if actualValue, expactedValue := fmt.Sprintf("%s", m.Keys()), "[]"; actualValue != expactedValue {
-		t.Errorf("Got %v expected %v", actualValue, expactedValue)
+	if actualValue, expectedValue := fmt.Sprintf("%s", m.Keys()), "[]"; actualValue != expectedValue {
+		t.Errorf("Got %v expected %v", actualValue, expectedValue)
 	}
-
-	// test Values()
-	if actualValue, expactedValue := fmt.Sprintf("%s", m.Values()), "[]"; actualValue != expactedValue {
-		t.Errorf("Got %v expected %v", actualValue, expactedValue)
+	if actualValue, expectedValue := fmt.Sprintf("%s", m.Values()), "[]"; actualValue != expectedValue {
+		t.Errorf("Got %v expected %v", actualValue, expectedValue)
 	}
-
-	// Test Size()
 	if actualValue := m.Size(); actualValue != 0 {
 		t.Errorf("Got %v expected %v", actualValue, 0)
 	}
-
-	// Test Empty()
 	if actualValue := m.Empty(); actualValue != true {
 		t.Errorf("Got %v expected %v", actualValue, true)
 	}
-
-	m.Put(1, "a")
-	m.Put(2, "b")
-	m.Clear()
-
-	// Test Empty()
-	if actualValue := m.Empty(); actualValue != true {
-		t.Errorf("Got %v expected %v", actualValue, true)
-	}
-
 }
 
-func BenchmarkTreeMap(b *testing.B) {
+func sameElements(a []interface{}, b []interface{}) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for _, av := range a {
+		found := false
+		for _, bv := range b {
+			if av == bv {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
+}
+
+func TestMapEach(t *testing.T) {
+	m := NewWithStringComparator()
+	m.Put("c", 3)
+	m.Put("a", 1)
+	m.Put("b", 2)
+	count := 0
+	m.Each(func(key interface{}, value interface{}) {
+		count++
+		if actualValue, expectedValue := count, value; actualValue != expectedValue {
+			t.Errorf("Got %v expected %v", actualValue, expectedValue)
+		}
+		switch value {
+		case 1:
+			if actualValue, expectedValue := key, "a"; actualValue != expectedValue {
+				t.Errorf("Got %v expected %v", actualValue, expectedValue)
+			}
+		case 2:
+			if actualValue, expectedValue := key, "b"; actualValue != expectedValue {
+				t.Errorf("Got %v expected %v", actualValue, expectedValue)
+			}
+		case 3:
+			if actualValue, expectedValue := key, "c"; actualValue != expectedValue {
+				t.Errorf("Got %v expected %v", actualValue, expectedValue)
+			}
+		default:
+			t.Errorf("Too many")
+		}
+	})
+}
+
+func TestMapMap(t *testing.T) {
+	m := NewWithStringComparator()
+	m.Put("c", 3)
+	m.Put("a", 1)
+	m.Put("b", 2)
+	mappedMap := m.Map(func(key1 interface{}, value1 interface{}) (key2 interface{}, value2 interface{}) {
+		return key1, "mapped: " + key1.(string)
+	})
+	if actualValue, _ := mappedMap.Get("a"); actualValue != "mapped: a" {
+		t.Errorf("Got %v expected %v", actualValue, "mapped: a")
+	}
+	if actualValue, _ := mappedMap.Get("b"); actualValue != "mapped: b" {
+		t.Errorf("Got %v expected %v", actualValue, "mapped: b")
+	}
+	if actualValue, _ := mappedMap.Get("c"); actualValue != "mapped: c" {
+		t.Errorf("Got %v expected %v", actualValue, "mapped: c")
+	}
+	if mappedMap.Size() != 3 {
+		t.Errorf("Got %v expected %v", mappedMap.Size(), 3)
+	}
+}
+
+func TestMapSelect(t *testing.T) {
+	m := NewWithStringComparator()
+	m.Put("c", 3)
+	m.Put("a", 1)
+	m.Put("b", 2)
+	selectedMap := m.Select(func(key interface{}, value interface{}) bool {
+		return key.(string) >= "a" && key.(string) <= "b"
+	})
+	if actualValue, _ := selectedMap.Get("a"); actualValue != 1 {
+		t.Errorf("Got %v expected %v", actualValue, "value: a")
+	}
+	if actualValue, _ := selectedMap.Get("b"); actualValue != 2 {
+		t.Errorf("Got %v expected %v", actualValue, "value: b")
+	}
+	if selectedMap.Size() != 2 {
+		t.Errorf("Got %v expected %v", selectedMap.Size(), 2)
+	}
+}
+
+func TestMapAny(t *testing.T) {
+	m := NewWithStringComparator()
+	m.Put("c", 3)
+	m.Put("a", 1)
+	m.Put("b", 2)
+	any := m.Any(func(key interface{}, value interface{}) bool {
+		return value.(int) == 3
+	})
+	if any != true {
+		t.Errorf("Got %v expected %v", any, true)
+	}
+	any = m.Any(func(key interface{}, value interface{}) bool {
+		return value.(int) == 4
+	})
+	if any != false {
+		t.Errorf("Got %v expected %v", any, false)
+	}
+}
+
+func TestMapAll(t *testing.T) {
+	m := NewWithStringComparator()
+	m.Put("c", 3)
+	m.Put("a", 1)
+	m.Put("b", 2)
+	all := m.All(func(key interface{}, value interface{}) bool {
+		return key.(string) >= "a" && key.(string) <= "c"
+	})
+	if all != true {
+		t.Errorf("Got %v expected %v", all, true)
+	}
+	all = m.All(func(key interface{}, value interface{}) bool {
+		return key.(string) >= "a" && key.(string) <= "b"
+	})
+	if all != false {
+		t.Errorf("Got %v expected %v", all, false)
+	}
+}
+
+func TestMapFind(t *testing.T) {
+	m := NewWithStringComparator()
+	m.Put("c", 3)
+	m.Put("a", 1)
+	m.Put("b", 2)
+	foundKey, foundValue := m.Find(func(key interface{}, value interface{}) bool {
+		return key.(string) == "c"
+	})
+	if foundKey != "c" || foundValue != 3 {
+		t.Errorf("Got %v -> %v expected %v -> %v", foundKey, foundValue, "c", 3)
+	}
+	foundKey, foundValue = m.Find(func(key interface{}, value interface{}) bool {
+		return key.(string) == "x"
+	})
+	if foundKey != nil || foundValue != nil {
+		t.Errorf("Got %v at %v expected %v at %v", foundValue, foundKey, nil, nil)
+	}
+}
+
+func TestMapChaining(t *testing.T) {
+	m := NewWithStringComparator()
+	m.Put("c", 3)
+	m.Put("a", 1)
+	m.Put("b", 2)
+	chainedMap := m.Select(func(key interface{}, value interface{}) bool {
+		return value.(int) > 1
+	}).Map(func(key interface{}, value interface{}) (interface{}, interface{}) {
+		return key.(string) + key.(string), value.(int) * value.(int)
+	})
+	if actualValue := chainedMap.Size(); actualValue != 2 {
+		t.Errorf("Got %v expected %v", actualValue, 2)
+	}
+	if actualValue, found := chainedMap.Get("aa"); actualValue != nil || found {
+		t.Errorf("Got %v expected %v", actualValue, nil)
+	}
+	if actualValue, found := chainedMap.Get("bb"); actualValue != 4 || !found {
+		t.Errorf("Got %v expected %v", actualValue, 4)
+	}
+	if actualValue, found := chainedMap.Get("cc"); actualValue != 9 || !found {
+		t.Errorf("Got %v expected %v", actualValue, 9)
+	}
+}
+
+func TestMapIterator(t *testing.T) {
+	m := NewWithStringComparator()
+	m.Put("c", 3)
+	m.Put("a", 1)
+	m.Put("b", 2)
+
+	it := m.Iterator()
+	for it.Next() {
+		key := it.Key()
+		value := it.Value()
+		switch key {
+		case "a":
+			if actualValue, expectedValue := value, 1; actualValue != expectedValue {
+				t.Errorf("Got %v expected %v", actualValue, expectedValue)
+			}
+		case "b":
+			if actualValue, expectedValue := value, 2; actualValue != expectedValue {
+				t.Errorf("Got %v expected %v", actualValue, expectedValue)
+			}
+		case "c":
+			if actualValue, expectedValue := value, 3; actualValue != expectedValue {
+				t.Errorf("Got %v expected %v", actualValue, expectedValue)
+			}
+		default:
+			t.Errorf("Too many")
+		}
+	}
+
+	m.Clear()
+	it = m.Iterator()
+	for it.Next() {
+		t.Errorf("Shouldn't iterate on empty map")
+	}
+}
+
+func BenchmarkMap(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		m := NewWithIntComparator()
 		for n := 0; n < 1000; n++ {

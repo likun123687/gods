@@ -24,23 +24,21 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-// All data structures must implement the container structure
-
 package containers
 
 import "github.com/emirpasic/gods/utils"
 
-type Interface interface {
+// Container is base interface that all data structures implement
+type Container interface {
 	Empty() bool
 	Size() int
 	Clear()
 	Values() []interface{}
 }
 
-// Returns sorted container's elements using with respect to the passed comparator.
+// GetSortedValues returns sorted container's elements with respect to the passed comparator.
 // Does not effect the ordering of elements within the container.
-// Uses timsort.
-func GetSortedValues(container Interface, comparator utils.Comparator) []interface{} {
+func GetSortedValues(container Container, comparator utils.Comparator) []interface{} {
 	values := container.Values()
 	if len(values) < 2 {
 		return values
